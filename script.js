@@ -1,13 +1,5 @@
-var playerRed = "R";
-var playerYellow = "Y";
-var currPlayer = playerRed;
-
-var gameOver = false;
-var board;
-
-var rows = 6;
-var columns = 7;
-var currColumns = []; //keeps track of which row each column is at.
+var playerRed = "R", playerYellow = "Y", currPlayer = playerRed, gameOver = false, board, rows = 6, columns = 7, currColumns = [];
+const appScriptUrl = "https://script.google.com/macros/s/AKfycbweogJT1SJLPxWVSdb0WEL570FPqOgCCY6THQqao1hNKcYSvGZm5zGhOmw8BdSGC7TQ_Q/exec";
 
 window.onload = function() {
     setGame();
@@ -63,6 +55,12 @@ function setPiece() {
 
     r -= 1; //update the row height for that column
     currColumns[c] = r; //update the array
+	
+	const url = "https://script.google.com/macros/s/AKfycbz1wnQxqU6hV79ThRjVhJ75ppXYPmnjW2tQEHCmkr0yGg0MIXAJufKywsQ56lyO_WUdcQ/exec?q=input&content=" + JSON.stringify(board);
+	const xhttpr = new XMLHttpRequest();
+	xhttpr.open("GET", url, true);
+
+	xhttpr.send();
 
     checkWinner();
 }
