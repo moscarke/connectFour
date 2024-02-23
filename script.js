@@ -24,6 +24,7 @@ async function checkPassword(player) {
 }
 
 function setGame(player) {
+	currPlayer = player;
 	if (player == playerRed){
 		playAs = playerRed;
 	} else {
