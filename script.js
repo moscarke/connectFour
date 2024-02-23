@@ -1,11 +1,39 @@
-var playerRed = "R", playerYellow = "Y", currPlayer = playerRed, gameOver = false, board, rows = 6, columns = 7, currColumns = [];
+var playerRed = "R", playerYellow = "Y", currPlayer = playerRed, gameOver = false, board, rows = 6, columns = 7, currColumns = [], playAs, checkMoveInterval, wait = false;
 const appScriptUrl = "https://script.google.com/macros/s/AKfycbweogJT1SJLPxWVSdb0WEL570FPqOgCCY6THQqao1hNKcYSvGZm5zGhOmw8BdSGC7TQ_Q/exec";
 
-window.onload = function() {
+/*window.onload = function() {
     setGame();
+}*/
+
+async function checkPassword(player) {
+	document.getElementsByClassName("startBtn")[0].disabled = true;
+	document.getElementsByClassName("startBtn")[1].disabled = true;
+	document.getElementById("error").innerText = "Checking...";
+	const passW = document.getElementById("passwordInput").value;
+	const raw = await fetch(appScriptUrl + "?q=passwordCheck&content=" + passW);
+	const response = await raw.json();
+	document.getElementById("passwordInput").value = "";
+	if(response["password"]){
+		window.addEventListener("beforeunload", beforeUnloadHandler);
+		setGame(player);
+	} else {
+		document.getElementById("error").innerText = "Error: Game code is wrong";
+		document.getElementsByClassName("startBtn")[0].disabled = false;
+		document.getElementsByClassName("startBtn")[1].disabled = false;
+	}
 }
 
-function setGame() {
+function setGame(player) {
+	if (player == playerRed){
+		playAs = playerRed;
+	} else {
+		playAs = playerYellow;
+	}
+	document.getElementById("playerSelection").style.display = "none";
+	document.getElementById("board").style.display = "";
+	checkMove(true);
+	checkMoveInterval = setInterval(checkMove, 4000);
+	
     board = [];
     currColumns = [5, 5, 5, 5, 5, 5, 5];
 
@@ -26,7 +54,7 @@ function setGame() {
 }
 
 function setPiece() {
-    if (gameOver) {
+    if (gameOver || currPlayer != playAs) {
         return;
     }
 
@@ -47,22 +75,77 @@ function setPiece() {
     if (currPlayer == playerRed) {
         tile.classList.add("red-piece");
         currPlayer = playerYellow;
+		document.getElementById("winner").innerText = "Waiting for yellow...";
     }
     else {
         tile.classList.add("yellow-piece");
         currPlayer = playerRed;
+		document.getElementById("winner").innerText = "Waiting for red...";
     }
 
     r -= 1; //update the row height for that column
     currColumns[c] = r; //update the array
 	
-	const url = "https://script.google.com/macros/s/AKfycbz1wnQxqU6hV79ThRjVhJ75ppXYPmnjW2tQEHCmkr0yGg0MIXAJufKywsQ56lyO_WUdcQ/exec?q=input&content=" + JSON.stringify(board);
+	const url = appScriptUrl + "?q=input&content=" + JSON.stringify(board);
 	const xhttpr = new XMLHttpRequest();
 	xhttpr.open("GET", url, true);
 
 	xhttpr.send();
+	wait = new Date();
 
     checkWinner();
+}
+
+function checkMove(initial) {
+	const url = appScriptUrl;
+	const xhttpr = new XMLHttpRequest();
+	const sendTime = new Date();
+	xhttpr.open("GET", url, true);
+
+	xhttpr.send();
+	
+	xhttpr.onload = ()=> {
+		if (xhttpr.status == 200){
+			const response = JSON.parse(xhttpr.response)["board"];
+			if (JSON.stringify(response) == JSON.stringify(board) || sendTime < wait){
+				return;
+			}
+			
+			output:
+			for (let r = 0; r < rows; r++) {
+				for (let c = 0; c < columns; c++) {
+					if (response[r][c] == board[r][c]){
+						continue;
+					}
+					
+					let tile = document.getElementById(r.toString() + "-" + c.toString());
+					if (response[r][c] == playerRed){
+						tile.classList.add("red-piece");
+					} else if (response[r][c] == playerYellow){
+						tile.classList.add("yellow-piece");
+					} else {
+						return;
+					}
+					
+					currColumns[c] = currColumns[c] - 1;
+					if (!initial){
+						if (currPlayer == playerRed) {
+							currPlayer = playerYellow;
+						}
+						else {
+							currPlayer = playerRed;
+						}
+						document.getElementById("winner").innerText = "Your turn!";
+						board = response;
+						checkWinner();
+						return;
+					}
+				}
+			}
+			board = response;
+			checkWinner();
+		}
+	}
 }
 
 function checkWinner() {
@@ -123,4 +206,14 @@ function setWinner(r, c) {
         winner.innerText = "Yellow Wins";
     }
     gameOver = true;
+	clearInterval(checkMoveInterval);
+	window.removeEventListener("beforeunload", beforeUnloadHandler);
+}
+
+function beforeUnloadHandler(event) {
+  // For modern browser
+  event.preventDefault();
+
+  // Included for legacy support, e.g. Chrome/Edge < 119. Safari
+  event.returnValue = true;
 }
