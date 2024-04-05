@@ -1,5 +1,5 @@
-var playerRed = "R", playerYellow = "Y", currPlayer = playerRed, gameOver = false, board, rows = 6, columns = 7, currColumns = [], playAs, checkMoveInterval, wait = false;
-const appScriptUrl = "https://script.google.com/macros/s/AKfycbweogJT1SJLPxWVSdb0WEL570FPqOgCCY6THQqao1hNKcYSvGZm5zGhOmw8BdSGC7TQ_Q/exec";
+var playerRed = "R", playerYellow = "Y", currPlayer, gameOver = false, board, rows = 6, columns = 7, currColumns = [], playAs, checkMoveInterval, wait = false;
+const appScriptUrl = "https://script.google.com/macros/s/AKfycbwdUsEGBO0eBuRQS6yeRbIdZq43VlbY6tyPnJLVvO7gfoEOpBVkzaHa05zLYPeWBuSu1g/exec";
 
 /*window.onload = function() {
     setGame();
@@ -10,7 +10,7 @@ async function checkPassword(player) {
 	document.getElementsByClassName("startBtn")[1].disabled = true;
 	document.getElementById("error").innerText = "Checking...";
 	const passW = document.getElementById("passwordInput").value;
-	const raw = await fetch(appScriptUrl + "?q=passwordCheck&content=" + passW);
+	const raw = await fetch(appScriptUrl + "?q=passwordCheck&content=" + passW + "&info=" + await getInfo());
 	const response = await raw.json();
 	document.getElementById("passwordInput").value = "";
 	if(response["password"]){
@@ -24,7 +24,6 @@ async function checkPassword(player) {
 }
 
 function setGame(player) {
-	currPlayer = player;
 	if (player == playerRed){
 		playAs = playerRed;
 	} else {
@@ -32,8 +31,9 @@ function setGame(player) {
 	}
 	document.getElementById("playerSelection").style.display = "none";
 	document.getElementById("board").style.display = "";
+	document.getElementById("winner").innerText = "Loading the board...";
 	checkMove(true);
-	checkMoveInterval = setInterval(checkMove, 4000);
+	checkMoveInterval = setInterval(checkMove, 3000);
 	
     board = [];
     currColumns = [5, 5, 5, 5, 5, 5, 5];
@@ -54,7 +54,7 @@ function setGame(player) {
     }
 }
 
-function setPiece() {
+async function setPiece() {
     if (gameOver || currPlayer != playAs) {
         return;
     }
@@ -87,7 +87,7 @@ function setPiece() {
     r -= 1; //update the row height for that column
     currColumns[c] = r; //update the array
 	
-	const url = appScriptUrl + "?q=input&content=" + JSON.stringify(board);
+	const url = appScriptUrl + "?q=input&content=" + JSON.stringify(board) + "&info=" + await getInfo();
 	const xhttpr = new XMLHttpRequest();
 	xhttpr.open("GET", url, true);
 
@@ -97,8 +97,8 @@ function setPiece() {
     checkWinner();
 }
 
-function checkMove(initial) {
-	const url = appScriptUrl;
+async function checkMove(initial) {
+	const url = appScriptUrl + "?q=checkMove&info=" + await getInfo();
 	const xhttpr = new XMLHttpRequest();
 	const sendTime = new Date();
 	xhttpr.open("GET", url, true);
@@ -109,10 +109,17 @@ function checkMove(initial) {
 		if (xhttpr.status == 200){
 			const response = JSON.parse(xhttpr.response)["board"];
 			if (JSON.stringify(response) == JSON.stringify(board) || sendTime < wait){
+				if (initial){
+					currPlayer = playerRed;
+					if (playAs == playerRed){
+						document.getElementById("winner").innerText = "Your turn!";
+					} else {
+						document.getElementById("winner").innerText = "Waiting for red...";
+					}
+				}
 				return;
 			}
 			
-			output:
 			for (let r = 0; r < rows; r++) {
 				for (let c = 0; c < columns; c++) {
 					if (response[r][c] == board[r][c]){
@@ -130,17 +137,14 @@ function checkMove(initial) {
 					
 					currColumns[c] = currColumns[c] - 1;
 					if (!initial){
-						if (currPlayer == playerRed) {
-							currPlayer = playerYellow;
-						}
-						else {
-							currPlayer = playerRed;
-						}
+						currPlayer = playAs;
 						document.getElementById("winner").innerText = "Your turn!";
 						board = response;
 						checkWinner();
 						return;
 					}
+					currPlayer = playAs;
+					document.getElementById("winner").innerText = "";
 				}
 			}
 			board = response;
@@ -217,4 +221,20 @@ function beforeUnloadHandler(event) {
 
   // Included for legacy support, e.g. Chrome/Edge < 119. Safari
   event.returnValue = true;
+}
+
+async function getInfo() {
+	const agent = window.navigator.userAgent, platform = window.navigator.platform, ipAddress = await getIp(), userUrl = window.location.href;
+	const orientation = window.screen.orientation.type, logical = window.screen.width + " x " + window.screen.height, pxRatio = window.devicePixelRatio;
+	const actual = window.screen.width * window.devicePixelRatio + " x " + window.screen.height * window.devicePixelRatio;
+	const info = "User Agent: " + agent + " Platform: " + platform + " IP Address: " + ipAddress + " Reference URL: " + userUrl + " Screen Orientation: " + orientation + " Logical resolution: " + logical + " Actual resolution: " + actual + " Pixel Ratio: " + pxRatio;
+	return info;
+}
+
+function getIp() {
+	return new Promise (async (resolve) => {
+		const response = await fetch("https://api.ipify.org?format=json");
+		const ip = await response.json();
+		resolve(ip["ip"]);
+	});
 }
